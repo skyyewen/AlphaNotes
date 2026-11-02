@@ -1,0 +1,28 @@
+{
+  "dataset_kind": "fully_synthetic_demo",
+  "notice": "SYNTHETIC DEMO ONLY - fabricated prices, volumes and sessions; no investment meaning",
+  "source": "Deterministic integer formulas in generate_synthetic_daily.py; no real data used",
+  "symbols": [
+    "601318.SH",
+    "000001.SZ",
+    "600519.SH"
+  ],
+  "symbol_note": "Security codes are routing examples only; every quote and volume is fabricated",
+  "rows_per_symbol": 120,
+  "total_rows": 360,
+  "start_date": "2026-05-14",
+  "end_date": "2026-10-28",
+  "calendar": "Simulated Monday-Friday sessions; public holidays are NOT excluded",
+  "timezone": "Asia/Shanghai (UTC+08:00)",
+  "currency": "CNY",
+  "interval": "1d",
+  "adjusted": "none",
+  "units": {
+    "price": "CNY",
+    "volume": "share",
+    "turnover": "CNY"
+  },
+  "file": "daily.parquet",
+  "bytes": 10318,
+  "sha256": "623cef13e9ca3239fd350a9a82f9ae0b546b44a6ad53c28b29e50f50bba3dfd8"
+}

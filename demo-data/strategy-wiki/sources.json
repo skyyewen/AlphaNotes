@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "source_id": "src_demo_daily_review_v1",
+      "path": "strategy-wiki/sources/demo_daily_review.md",
+      "sha256": "a40460b28f6ff8c60e6cc2eb35f933d84cdcbad0eb8adc9e3a0170078b70041b",
+      "allowed_for_tool_read": true
+    },
+    {
+      "source_id": "src_demo_evidence_review_v1",
+      "path": "strategy-wiki/sources/demo_evidence_review.md",
+      "sha256": "9471fbb469a874d908998dceb1ae794b43b3b19c228b48a1da018c7d8d786f9d",
+      "allowed_for_tool_read": true
+    },
+    {
+      "source_id": "src_demo_combined_review_v1",
+      "path": "strategy-wiki/sources/demo_combined_review.md",
+      "sha256": "7d979cc738ef189986da3bf560240415031d0bb180d6a7a61351f130f72da3ca",
+      "allowed_for_tool_read": true
+    }
+  ]
+}

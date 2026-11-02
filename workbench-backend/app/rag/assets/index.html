@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RAG 最小验证</title>
+  <style>
+    :root { font: 15px/1.6 system-ui, sans-serif; color: #182333; background: #f3f5f8; }
+    body { max-width: 1050px; margin: 28px auto; padding: 0 18px; }
+    h1 { margin-bottom: 4px; } h2 { margin: 0 0 14px; font-size: 19px; }
+    .muted { color: #5e6b7c; } .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card { background: white; border: 1px solid #dce2e9; border-radius: 12px; padding: 20px; margin: 18px 0; }
+    input, select, button { font: inherit; } input[type=text], input[type=date], select { padding: 8px 10px; border: 1px solid #c4ccd7; border-radius: 7px; }
+    input[type=text] { width: min(100%, 470px); box-sizing: border-box; }
+    button { background: #154e98; color: white; border: 0; border-radius: 7px; padding: 8px 14px; cursor: pointer; }
+    button.delete { background: #9a2f2f; } button:disabled { opacity: .55; cursor: wait; }
+    .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+    .field { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; }
+    .field input[type=text], .field select { width: 100%; }
+    .help { font-size: 13px; }
+    .doc { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid #e7ebf0; }
+    #answer { white-space: pre-wrap; min-height: 55px; }
+    #answer a { color: #154e98; font-weight: 700; }
+    #answer .unknown { color: #777; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f5f7fa; padding: 12px; border-radius: 8px; max-height: 500px; overflow: auto; }
+    .error { color: #a12626; } .ok { color: #17633c; }
+    @media(max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <h1>RAG 最小端到端验证</h1>
+  <div class="muted">基本面 RAG 独立调试页（/rag/debug）。这里的聊天不属于工作台研究与归档流程。</div>
+  <div class="muted">上传 Markdown → 子块混合检索 → BGE 重排 → 父块上下文 → 引用 → 流式回答</div>
+  <div class="grid">
+    <section class="card">
+      <h2>文档</h2>
+      <label class="field" for="uploadSymbol">标的代码<input id="uploadSymbol" type="text" maxlength="32" list="knownSymbols" placeholder="例如 600519.SH、399808.SZ" autocomplete="off"></label>
+      <label class="field" for="sourceType">资料类型<select id="sourceType"><option value="disclosure">财报 / 公告</option><option value="research_report">研报</option><option value="personal_note">个人笔记</option><option value="ai_generated">AI 生成</option></select></label>
+      <div class="row"><label id="dateLabel" for="availableDate">公开日期：</label><input id="availableDate" type="date"><button id="today" type="button" disabled>今天形成</button></div>
+      <div id="dateHint" class="muted help">整份文档填一个公开日期，未知可留空；不要使用财报报告期。</div>
+      <div class="row"><input id="file" type="file" accept=".md,text/markdown"><button id="upload">上传 / 更新</button></div>
+      <div class="muted help">AI 生成资料不参与事实检索；日期未知的资料在设置截止日期后不会命中。</div>
+      <div id="uploadStatus" class="muted"></div>
+      <div id="documents"></div>
+    </section>
+    <section class="card">
+      <h2>提问</h2>
+      <label class="field" for="querySymbol">研究标的<input id="querySymbol" type="text" maxlength="32" list="knownSymbols" placeholder="留空表示全部标的，仅用于调试" autocomplete="off"></label>
+      <div class="row"><label for="cutoffDate">截止日期：</label><input id="cutoffDate" type="date"></div>
+      <div class="muted help">截止日包含当天；留空不按日期过滤。筛选会同时作用于关键词和向量检索。</div>
+      <div class="row"><input id="query" type="text" placeholder="问一个文档内能回答的问题"><button id="ask">发送</button></div>
+      <div class="row"><label for="filter">文档过滤：</label><select id="filter"><option value="">所有文档</option></select></div>
+      <div class="muted help">文档过滤与标的、截止日期共同生效。</div>
+      <div id="answer"></div>
+      <div id="chatStatus" class="muted"></div>
+      <details id="evidenceDetails"><summary>引用原文（点击回答中的编号查看）</summary><pre id="evidence">暂无引用</pre></details>
+      <details><summary>引用映射</summary><pre id="citations">{}</pre></details>
+    </section>
+  </div>
+  <section class="card">
+    <h2>验收证据</h2>
+    <div class="row"><button id="refresh">刷新索引状态</button><button id="download" disabled>下载查询日志</button><span class="muted">BM25 在上传时建立持久化倒排索引；Chroma 持久化保存向量。</span></div>
+    <details open><summary>最近一次上传差异与 Embedding 次数</summary><pre id="uploadTrace">尚未上传</pre></details>
+    <details><summary>完整查询链路日志</summary><pre id="queryTrace">尚未查询</pre></details>
+    <details><summary>主存储 / 索引状态</summary><pre id="state">尚未刷新</pre></details>
+  </section>
+  <datalist id="knownSymbols"></datalist>
+  <script>
+    const $ = id => document.getElementById(id);
+    const pretty = value => JSON.stringify(value, null, 2);
+    let citationMap = {};
+    let answerText = '';
+    let lastResult = null;
+    let operation = null;
+    let selectedFile = null;
+    let fileLoading = false;
+    let dateEditVersion = 0;
+    let dateOrigin = null;
+    const sourceLabels = {disclosure:'财报 / 公告', research_report:'研报', personal_note:'个人笔记', ai_generated:'AI 生成'};
+    const controlIds = ['file', 'uploadSymbol', 'sourceType', 'availableDate', 'querySymbol', 'cutoffDate', 'query', 'filter', 'upload', 'ask', 'refresh'];
+
+    function isNote() { return ['personal_note', 'ai_generated'].includes($('sourceType').value); }
+    function updateControls() {
+      for (const id of controlIds) $(id).disabled = operation !== null;
+      $('upload').disabled = operation !== null || fileLoading;
+      $('today').disabled = operation !== null || !isNote();
+      for (const button of document.querySelectorAll('button.delete')) button.disabled = operation !== null;
+      $('dateLabel').textContent = isNote() ? '形成日期：' : '公开日期：';
+    }
+    function beginOperation(name) {
+      if (operation !== null) return false;
+      operation = name; updateControls(); return true;
+    }
+    function endOperation() { operation = null; updateControls(); }
+    function validDate(value) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const [year, month, day] = value.split('-').map(Number);
+      const date = new Date(value + 'T00:00:00');
+      return !Number.isNaN(date.getTime()) && date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day;
+    }
+    function symbolValue(id, required = false) {
+      const value = $(id).value.trim().toUpperCase();
+      if (!value && !required) return null;
+      if (!/^[A-Z0-9][A-Z0-9._-]{0,31}$/.test(value)) throw new Error('请填写证券代码，最多 32 位，可包含字母、数字、点、下划线或短横线。');
+      return value;
+    }
+    function dateValue(id) {
+      const value = $(id).value;
+      if (value && !validDate(value)) throw new Error('请填写有效日期，格式为 YYYY-MM-DD。');
+      return value || null;
+    }
+    function responseError(body, fallback) {
+      if (typeof body?.message === 'string') return body.message;
+      if (typeof body?.detail === 'string') return body.detail;
+      if (Array.isArray(body?.detail)) {
+        const labels = {symbol:'标的代码', source_type:'资料类型', available_date:'公开／形成日期', cutoff_date:'截止日期', query:'问题', filename:'文件名', content:'文档正文'};
+        return body.detail.map(item => {
+          const key = item.loc?.[item.loc.length - 1];
+          const label = labels[key] || '请求参数';
+          return label + '：' + (item.type === 'missing' ? '请填写此项' : (typeof item.msg === 'string' ? item.msg : '格式不正确'));
+        }).join('；');
+      }
+      return fallback;
+    }
+    async function readBody(response) {
+      try { return await response.json(); } catch { return null; }
+    }
+
+    async function request(url, options) {
+      const response = await fetch(url, options);
+      const body = await readBody(response);
+      if (!response.ok) throw new Error(responseError(body, `请求失败（HTTP ${response.status}）`));
+      if (body === null) throw new Error('后端未返回有效 JSON。');
+      return body;
+    }
+    async function refresh() {
+      const [documents, state] = await Promise.all([
+        request('/api/documents'), request('/api/debug/state')
+      ]);
+      $('state').textContent = pretty(state);
+      $('documents').replaceChildren();
+      const selected = $('filter').value;
+      $('filter').replaceChildren(new Option('所有文档', ''));
+      $('knownSymbols').replaceChildren();
+      const symbols = new Set();
+      for (const doc of documents) {
+        const name = `${doc.symbol} · ${doc.filename}`;
+        $('filter').add(new Option(name, doc.document_id));
+        if (doc.symbol) symbols.add(doc.symbol);
+        const row = document.createElement('div');
+        row.className = 'doc';
+        const label = document.createElement('span');
+        label.textContent = `${name} · ${sourceLabels[doc.source_type] || doc.source_type} · ${doc.available_date || '日期未知'} · ${doc.status} · ${doc.parent_count} Parent / ${doc.child_count} Child`;
+        const button = document.createElement('button');
+        button.className = 'delete';
+        button.textContent = '删除';
+        button.onclick = async () => {
+          if (!confirm(`删除 ${name} 及其索引？`) || !beginOperation('delete')) return;
+          try { $('uploadTrace').textContent = pretty(await request(`/api/documents/${doc.document_id}`, {method:'DELETE'})); await refresh(); }
+          catch (error) { $('uploadStatus').textContent = error.message; $('uploadStatus').className = 'error'; }
+          finally { endOperation(); }
+        };
+        row.append(label, button); $('documents').append(row);
+      }
+      for (const symbol of [...symbols].sort()) $('knownSymbols').append(new Option(symbol, symbol));
+      $('filter').value = selected;
+      updateControls();
+    }
+    function applyDateHint(content) {
+      const dates = new Set();
+      for (const line of content.slice(0, 16000).split(/\r?\n/).slice(0, 100)) {
+        const text = line.trim().replace(/\*\*/g, '').replace(/^[-*]\s+/, '');
+        const match = /^(available_date|published_date|公开日期|发布日期|形成日期)\s*[:：]\s*["']?(\d{4}-\d{2}-\d{2})["']?\s*(?:#.*)?$/.exec(text);
+        if (match && (match[1] !== '形成日期' || isNote()) && validDate(match[2])) dates.add(match[2]);
+      }
+      if (dates.size === 1) {
+        $('availableDate').value = [...dates][0]; dateOrigin = 'document';
+        $('dateHint').textContent = '已从文档明确日期字段预填，请确认这是该资料的公开／形成日期。';
+      } else {
+        $('dateHint').textContent = dates.size > 1 ? '文档前部出现多个明确日期，请手动确认；不同日期的资料建议拆开上传。' : '未找到明确的公开／形成日期，可手动填写或保留未知；不使用报告期和文件修改时间推断。';
+      }
+    }
+    async function prefillDate(fileData, editVersion) {
+      try {
+        const content = await fileData.content;
+        if (selectedFile === fileData && dateEditVersion === editVersion) applyDateHint(content);
+      } catch {
+        if (selectedFile === fileData) $('dateHint').textContent = '无法读取文件，请重新选择 Markdown 文件。';
+      } finally {
+        if (selectedFile === fileData) { fileLoading = false; updateControls(); }
+      }
+    }
+    $('file').onchange = () => {
+      dateEditVersion++; dateOrigin = null; $('availableDate').value = '';
+      $('uploadStatus').textContent = ''; $('dateHint').textContent = '正在读取文档日期…';
+      const file = $('file').files[0];
+      selectedFile = file ? {file, content:file.text()} : null;
+      fileLoading = Boolean(selectedFile); updateControls();
+      if (selectedFile) prefillDate(selectedFile, dateEditVersion);
+      else $('dateHint').textContent = '整份文档填一个公开／形成日期，未知可留空。';
+    };
+    $('availableDate').oninput = () => {
+      dateEditVersion++; dateOrigin = 'manual';
+      $('dateHint').textContent = $('availableDate').value ? '请确认这是资料的公开／形成日期，而非报告期或文中事件日期。' : '日期未知；设置截止日期检索时不会使用这份资料。';
+    };
+    $('sourceType').onchange = () => {
+      updateControls();
+      if (dateOrigin !== 'manual') {
+        dateEditVersion++; dateOrigin = null; $('availableDate').value = '';
+        if (selectedFile) prefillDate(selectedFile, dateEditVersion);
+      }
+    };
+    $('today').onclick = () => {
+      if (!isNote() || operation !== null) return;
+      const now = new Date();
+      $('availableDate').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      dateEditVersion++; dateOrigin = 'today';
+      $('dateHint').textContent = '已填今天；仅适用于今天实际形成的笔记或 AI 分析，请确认。';
+    };
+    $('upload').onclick = async () => {
+      const fileData = selectedFile;
+      if (!fileData) { $('uploadStatus').textContent = '先选择 Markdown 文件'; return; }
+      if (fileLoading || operation !== null) return;
+      let metadata;
+      try { metadata = {symbol:symbolValue('uploadSymbol', true), source_type:$('sourceType').value, available_date:dateValue('availableDate')}; }
+      catch (error) { $('uploadStatus').textContent = error.message; $('uploadStatus').className = 'error'; return; }
+      if (!beginOperation('upload')) return;
+      try {
+        const result = await request('/api/documents', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({filename:fileData.file.name, content:await fileData.content, ...metadata})
+        });
+        $('uploadTrace').textContent = pretty(result);
+        $('uploadStatus').textContent = `${result.action}；本次 Embedding ${result.embedded_children} 个 Child`;
+        $('uploadStatus').className = 'ok';
+        await refresh();
+      } catch (error) { $('uploadStatus').textContent = error.message; $('uploadStatus').className = 'error'; }
+      finally { endOperation(); }
+    };
+    function renderAnswer() {
+      $('answer').replaceChildren();
+      const pattern = /\[(\d+)\]/g;
+      let last = 0, match;
+      while ((match = pattern.exec(answerText))) {
+        $('answer').append(document.createTextNode(answerText.slice(last, match.index)));
+        const source = citationMap[match[1]];
+        const element = document.createElement(source ? 'a' : 'span');
+        element.textContent = match[0];
+        if (source) {
+          element.href = '#citations';
+          element.title = `${source.symbol || ''} · ${source.source} / ${source.heading_path} · ${source.available_date || '日期未知'}`;
+          element.onclick = () => { $('evidence').textContent = pretty(source); $('evidenceDetails').open = true; $('citations').parentElement.open = true; };
+        }
+        else element.className = 'unknown';
+        $('answer').append(element);
+        last = pattern.lastIndex;
+      }
+      $('answer').append(document.createTextNode(answerText.slice(last)));
+    }
+    function handleEvent(block) {
+      let type = 'message', data = '';
+      for (const line of block.split(/\r?\n/)) {
+        if (line.startsWith('event:')) type = line.slice(6).trim();
+        if (line.startsWith('data:')) data += line.slice(5).trimStart();
+      }
+      if (!data) return;
+      const payload = JSON.parse(data);
+      if (type === 'citations') {
+        citationMap = payload; $('citations').textContent = pretty(payload);
+        const first = Object.values(payload)[0];
+        $('evidence').textContent = first ? pretty(first) : '暂无引用';
+        renderAnswer();
+      }
+      if (type === 'delta') { answerText += payload.text; renderAnswer(); }
+      if (type === 'done') { lastResult = payload; $('download').disabled = false; $('queryTrace').textContent = pretty(payload.trace); $('chatStatus').textContent = '完成'; return true; }
+      if (type === 'error') { lastResult = payload; $('download').disabled = false; $('queryTrace').textContent = pretty(payload.trace); $('chatStatus').textContent = payload.message; $('chatStatus').className = 'error'; return true; }
+      return false;
+    }
+    $('ask').onclick = async () => {
+      const query = $('query').value.trim();
+      if (!query) return;
+      let payload;
+      try { payload = {query, document_id:$('filter').value || null, symbol:symbolValue('querySymbol'), cutoff_date:dateValue('cutoffDate')}; }
+      catch (error) { $('chatStatus').textContent = error.message; $('chatStatus').className = 'error'; return; }
+      if (!beginOperation('query')) return;
+      lastResult = null; $('download').disabled = true;
+      answerText = ''; citationMap = {}; renderAnswer();
+      $('citations').textContent = '{}'; $('evidence').textContent = '暂无引用'; $('chatStatus').textContent = '检索中…'; $('chatStatus').className = 'muted';
+      try {
+        const response = await fetch('/api/chat/stream', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(responseError(await readBody(response), `请求失败（HTTP ${response.status}）`));
+        if (!response.body) throw new Error('后端没有返回事件流。');
+        const reader = response.body.getReader(), decoder = new TextDecoder();
+        let buffer = '', terminalSeen = false;
+        while (true) {
+          const {value, done} = await reader.read();
+          buffer += decoder.decode(value || new Uint8Array(), {stream:!done});
+          let boundary;
+          while ((boundary = /\r?\n\r?\n/.exec(buffer))) {
+            terminalSeen = handleEvent(buffer.slice(0, boundary.index)) || terminalSeen;
+            buffer = buffer.slice(boundary.index + boundary[0].length);
+          }
+          if (done) break;
+        }
+        if (buffer.trim()) terminalSeen = handleEvent(buffer) || terminalSeen;
+        if (!terminalSeen) throw new Error('连接已结束，但未收到完成或错误事件，请查看后端日志。');
+      } catch (error) { $('chatStatus').textContent = error.message; $('chatStatus').className = 'error'; }
+      finally { endOperation(); }
+    };
+    $('query').addEventListener('keydown', event => { if (event.key === 'Enter') $('ask').click(); });
+    async function refreshFromButton() {
+      if (!beginOperation('refresh')) return;
+      try { await refresh(); }
+      catch (error) { $('state').textContent = error.message; }
+      finally { endOperation(); }
+    }
+    $('refresh').onclick = refreshFromButton;
+    $('download').onclick = () => {
+      if (!lastResult) return;
+      const file = new Blob([pretty(lastResult)], {type:'application/json;charset=utf-8'});
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(file);
+      link.download = `rag-trace-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    };
+    updateControls();
+    refreshFromButton();
+  </script>
+</body>
+</html>
+

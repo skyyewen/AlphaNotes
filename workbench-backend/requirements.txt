@@ -1,0 +1,11 @@
+# Backend runtime and dependencies used by the selected Agent baseline.
+# Installing these packages does not import or connect the original Agent.
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic-settings==2.15.0
+openai==2.48.0
+requests==2.34.2
+chromadb==1.5.9
+jieba==0.42.1
+duckdb==1.5.4
+langgraph==1.2.18

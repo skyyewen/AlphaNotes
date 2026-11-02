@@ -1,0 +1,3 @@
+# Keep demo text reproducible and preserve checksum-verified Wiki content.
+/demo-data/** text eol=lf
+/demo-data/market/*.parquet binary

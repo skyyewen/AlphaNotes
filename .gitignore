@@ -1,0 +1,69 @@
+# Local credentials: only empty .env.example templates are public.
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+.envrc
+*.pem
+*.key
+*.p12
+*.pfx
+# Environments, dependencies, caches and build products.
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.npm-cache/
+.vite/
+.playwright-cli/
+dist/
+build/
+coverage/
+htmlcov/
+.coverage
+*.egg-info/
+logs/
+*.log
+*.local
+.vscode/
+.idea/
+# Private datasets and databases, including sidecar files.
+*.parquet
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.duckdb
+*.duckdb.*
+*.pkl
+*.pickle
+*.joblib
+# Private documents, reference designs, screenshots and preparation reports.
+doc/
+docs/
+*.doc
+*.docx
+output/
+材料/
+.repository-preparation/
+.git-backup*/
+.git.backup*/
+.DS_Store
+Thumbs.db
+# Explicit application data exclusions.
+/workbench-backend/data/
+/workbench-backend/data/market/*.parquet
+/workbench-backend/data/rag/
+/workbench-backend/data/research/*.sqlite3
+/workbench-backend/data/agent-validation/
+/workbench-front-dev/output/
+/scripts/prepare_repository.py
+
+# Allow only the tiny, synthetic market fixture shipped for the public demo.
+!/demo-data/market/daily.parquet

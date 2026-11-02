@@ -1,0 +1,6 @@
+-r requirements.txt
+httpx==0.28.1
+# Starlette 1.10 uses httpx2 for TestClient; OpenAI still requires httpx.
+httpx2==2.16.0
+pytest==9.1.1
+ruff==0.17.2

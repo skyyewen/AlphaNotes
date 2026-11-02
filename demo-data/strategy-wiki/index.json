@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "source_registry": "sources.json",
+  "families": [
+    {
+      "strategy_id": "demo_daily_review",
+      "name": "虚构示例：日线资料核对",
+      "aliases": [
+        "演示日线核对",
+        "示例行情核对"
+      ],
+      "reference_version": "V1",
+      "reference_basis": "仓库新编虚构演示版本；选择不代表采用或验证策略。"
+    },
+    {
+      "strategy_id": "demo_evidence_review",
+      "name": "虚构示例：资料引用核对",
+      "aliases": [
+        "演示资料核对",
+        "示例引用核对"
+      ],
+      "reference_version": "V1",
+      "reference_basis": "仓库新编虚构演示版本；选择不代表采用或验证策略。"
+    },
+    {
+      "strategy_id": "demo_combined_review",
+      "name": "虚构示例：多工具证据整理",
+      "aliases": [
+        "演示组合核对",
+        "示例多工具核对"
+      ],
+      "reference_version": "V1",
+      "reference_basis": "仓库新编虚构演示版本；选择不代表采用或验证策略。"
+    }
+  ],
+  "strategies": [
+    {
+      "document_id": "demo_daily_review_v1",
+      "type": "strategy_rule",
+      "strategy_id": "demo_daily_review",
+      "version": "V1",
+      "file": "strategies/demo_daily_review_v1.md",
+      "title": "虚构示例：日线资料核对 V1",
+      "aliases": [
+        "演示日线核对",
+        "示例行情核对"
+      ],
+      "tags": [
+        "synthetic",
+        "demo",
+        "research-review"
+      ],
+      "status": "synthetic_demo",
+      "summary": "仅演示读取合成日线、核对实际日期与原始字段，不产生交易信号。",
+      "verification_scope": "完全虚构，仅验证软件读取、引用与流程；不代表真实行情或策略效果。",
+      "content_sha256": "faddff493171fabead5b0694fb11b51122f306c5d9155ec7d2288e99c0f993be",
+      "line_count": 22,
+      "sections": [
+        {
+          "title": "虚构示例：日线资料核对 V1",
+          "level": 1,
+          "line_start": 1,
+          "line_end": 22
+        },
+        {
+          "title": "适用范围与前置条件",
+          "level": 2,
+          "line_start": 5,
+          "line_end": 9
+        },
+        {
+          "title": "核对步骤",
+          "level": 2,
+          "line_start": 10,
+          "line_end": 14
+        },
+        {
+          "title": "失效与数据边界",
+          "level": 2,
+          "line_start": 15,
+          "line_end": 19
+        },
+        {
+          "title": "输出要求",
+          "level": 2,
+          "line_start": 20,
+          "line_end": 22
+        }
+      ],
+      "source_ids": [
+        "src_demo_daily_review_v1"
+      ],
+      "evidence_document_ids": []
+    },
+    {
+      "document_id": "demo_evidence_review_v1",
+      "type": "strategy_rule",
+      "strategy_id": "demo_evidence_review",
+      "version": "V1",
+      "file": "strategies/demo_evidence_review_v1.md",
+      "title": "虚构示例：资料引用核对 V1",
+      "aliases": [
+        "演示资料核对",
+        "示例引用核对"
+      ],
+      "tags": [
+        "synthetic",
+        "demo",
+        "research-review"
+      ],
+      "status": "synthetic_demo",
+      "summary": "演示按标的与资料日期检索文本，区分原文、登记日期和未知项。",
+      "verification_scope": "完全虚构，仅验证软件读取、引用与流程；不代表真实行情或策略效果。",
+      "content_sha256": "e7a78ee0c06d0b59fd8089bcfa7afe3852bf526ffdd8cff229625ab057e8db48",
+      "line_count": 22,
+      "sections": [
+        {
+          "title": "虚构示例：资料引用核对 V1",
+          "level": 1,
+          "line_start": 1,
+          "line_end": 22
+        },
+        {
+          "title": "适用范围与前置条件",
+          "level": 2,
+          "line_start": 5,
+          "line_end": 9
+        },
+        {
+          "title": "核对步骤",
+          "level": 2,
+          "line_start": 10,
+          "line_end": 14
+        },
+        {
+          "title": "失效与数据边界",
+          "level": 2,
+          "line_start": 15,
+          "line_end": 19
+        },
+        {
+          "title": "输出要求",
+          "level": 2,
+          "line_start": 20,
+          "line_end": 22
+        }
+      ],
+      "source_ids": [
+        "src_demo_evidence_review_v1"
+      ],
+      "evidence_document_ids": []
+    },
+    {
+      "document_id": "demo_combined_review_v1",
+      "type": "strategy_rule",
+      "strategy_id": "demo_combined_review",
+      "version": "V1",
+      "file": "strategies/demo_combined_review_v1.md",
+      "title": "虚构示例：多工具证据整理 V1",
+      "aliases": [
+        "演示组合核对",
+        "示例多工具核对"
+      ],
+      "tags": [
+        "synthetic",
+        "demo",
+        "research-review"
+      ],
+      "status": "synthetic_demo",
+      "summary": "演示分别使用日线、资料与固定版本规则，整理证据和缺失项。",
+      "verification_scope": "完全虚构，仅验证软件读取、引用与流程；不代表真实行情或策略效果。",
+      "content_sha256": "2b71318ccbd3286f60126edf8cb7e92c4baf86722c7a6e2d45d9f75af0fb42e1",
+      "line_count": 22,
+      "sections": [
+        {
+          "title": "虚构示例：多工具证据整理 V1",
+          "level": 1,
+          "line_start": 1,
+          "line_end": 22
+        },
+        {
+          "title": "适用范围与前置条件",
+          "level": 2,
+          "line_start": 5,
+          "line_end": 9
+        },
+        {
+          "title": "核对步骤",
+          "level": 2,
+          "line_start": 10,
+          "line_end": 14
+        },
+        {
+          "title": "失效与数据边界",
+          "level": 2,
+          "line_start": 15,
+          "line_end": 19
+        },
+        {
+          "title": "输出要求",
+          "level": 2,
+          "line_start": 20,
+          "line_end": 22
+        }
+      ],
+      "source_ids": [
+        "src_demo_combined_review_v1"
+      ],
+      "evidence_document_ids": []
+    }
+  ],
+  "components": [],
+  "research_evidence": []
+}
