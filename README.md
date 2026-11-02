@@ -34,6 +34,6 @@
 
 ## 项目截图
 
-![首页](F:\Desktop\github\AlphaNotes\首页.png)
+![首页](.\首页.png)
 
-![对话](F:\Desktop\github\AlphaNotes\对话.png)
+![对话](.\对话.png)
